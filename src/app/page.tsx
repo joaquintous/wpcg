@@ -38,30 +38,45 @@ export default function Home() {
   };
   
   useEffect(() => {
-    if (auth) {
-      getRedirectResult(auth)
-        .then((result) => {
-          if (result) {
-            console.log('Firebase redirect result processed for user:', result.user.email);
-          }
-        })
-        .catch(error => {
-          console.error("Error processing redirect result:", error);
-          if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
-            toast({
-              variant: "destructive",
-              title: "Login Failed",
-              description: `Could not complete sign-in. Reason: ${error.message}`,
-              duration: 10000,
+    if (!auth) {
+      return;
+    }
+
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          // A redirect was processed. We now check if the auth state "stuck".
+          // If the domain is unauthorized, `auth.currentUser` will be null even after a successful redirect.
+          if (!auth.currentUser) {
+             toast({
+                variant: "destructive",
+                title: "Login Verification Failed",
+                description: "The login succeeded but the app could not verify the session. This is usually because the domain is not authorized. Please add this website's domain to the 'Authorized domains' list in your Firebase Authentication settings.",
+                duration: 20000,
             });
           }
-        })
-        .finally(() => {
-            setIsProcessingRedirect(false);
-        });
-    } else {
+        }
+        // In all cases, the redirect processing is now finished.
         setIsProcessingRedirect(false);
-    }
+      })
+      .catch(error => {
+        console.error("Error processing redirect result:", error);
+        
+        let description = `Could not complete sign-in. Reason: ${error.message}`;
+        if (error.code === 'auth/unauthorized-domain') {
+            description = "This domain is not authorized for login. Please add it to your Firebase Authentication settings under 'Authorized domains'.";
+        }
+
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: description,
+          duration: 20000,
+        });
+        
+        setIsProcessingRedirect(false);
+      });
+      
   }, [auth, toast]);
 
 
