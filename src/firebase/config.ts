@@ -5,19 +5,20 @@
 // Security is enforced by Firebase Security Rules.
 
 function getFirebaseConfig() {
-  // App Hosting automatically injects the web app config as a JSON string.
-  // We parse it to get the config object.
-  if (process.env.FIREBASE_WEBAPP_CONFIG) {
+  // In production (App Hosting), this is set via next.config.js
+  if (process.env.NEXT_PUBLIC_FIREBASE_CONFIG) {
     try {
-      return JSON.parse(process.env.FIREBASE_WEBAPP_CONFIG);
+      // The env var is a JSON string, so we need to parse it.
+      return JSON.parse(process.env.NEXT_PUBLIC_FIREBASE_CONFIG);
     } catch (e) {
-      console.error('Failed to parse FIREBASE_WEBAPP_CONFIG', e);
+      console.error('Failed to parse NEXT_PUBLIC_FIREBASE_CONFIG', e);
     }
   }
 
-  // Fallback for local development, using the .env file.
+  // Fallback for local development, using individual .env variables.
+  // This part is what shows the error message if nothing is configured.
   return {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'YOUR_API_KEY_IS_MISSING',
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,

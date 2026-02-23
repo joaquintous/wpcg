@@ -29,6 +29,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Make the build-time Firebase config available to the client-side code
+  env: {
+    NEXT_PUBLIC_FIREBASE_CONFIG: process.env.FIREBASE_WEBAPP_CONFIG,
+  },
 };
 
 export default nextConfig;
