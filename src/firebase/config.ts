@@ -27,4 +27,3 @@ function getFirebaseConfig() {
 }
 
 export const firebaseConfig = getFirebaseConfig();
- 
