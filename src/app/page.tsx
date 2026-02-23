@@ -27,26 +27,48 @@ export default function Home() {
   const { toast } = useToast();
 
   const handleLogin = async () => {
-    if (!auth) return;
+    if (!auth) {
+      toast({
+        variant: 'destructive',
+        title: 'Error de Inicialización',
+        description: 'El objeto de autenticación de Firebase no está disponible.',
+        duration: 20000,
+      });
+      return;
+    }
+
     const provider = new GoogleAuthProvider();
+    toast({
+      title: 'Iniciando sesión...',
+      description: 'Abriendo la ventana emergente de Google. Por favor, espere.',
+      duration: 5000,
+    });
+
     try {
-      await signInWithPopup(auth, provider);
-      // The onAuthStateChanged listener in useUser will handle the user state update.
+      const result = await signInWithPopup(auth, provider);
+      // If we get here, the popup was successful from Firebase's perspective
+      toast({
+        variant: 'default',
+        title: '¡Autenticación con Google exitosa!',
+        description: `Bienvenido, ${result.user.displayName}. Verificando estado final...`,
+        duration: 10000,
+      });
+      // The onAuthStateChanged listener in useUser should now handle the rest.
+      // The UI should update automatically. If it doesn't, the problem is in the state update flow.
     } catch (error: any) {
-      console.error("Error during sign-in with popup:", error);
-      if (error.code === 'auth/popup-blocked') {
-        toast({
-          variant: "destructive",
-          title: "Popup Bloqueado",
-          description: "Por favor, permite las ventanas emergentes para este sitio para poder iniciar sesión.",
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Fallo en el inicio de sesión",
-          description: error.message || "Ha ocurrido un error desconocido.",
-        });
-      }
+      console.error('Error detallado durante signInWithPopup:', error);
+      // Create a super detailed error message
+      const errorMessage = `Código: ${error.code}\nMensaje: ${error.message}`;
+      toast({
+        variant: 'destructive',
+        title: 'Error durante el inicio de sesión',
+        description: (
+          <pre className="mt-2 w-full whitespace-pre-wrap rounded-md bg-slate-950 p-4">
+            <code className="text-white">{errorMessage}</code>
+          </pre>
+        ),
+        duration: 20000,
+      });
     }
   };
 
