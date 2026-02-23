@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import type { GeneratedContent } from '@/lib/types';
-import { publishToWordPressAction } from '@/lib/actions';
+import { publishToWordPressAction } from '@/lib/wp-actions';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Send, RefreshCw, X, Clock, KeyRound, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
