@@ -43,45 +43,48 @@ export default function Home() {
       setIsProcessingRedirect(false);
       return;
     }
+  
+    // This function is designed to only run once.
+    const processRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        const currentUser = auth.currentUser;
+        
+        let debugInfo = {
+          hasResult: !!result,
+          resultUser: result ? { uid: result.user.uid, email: result.user.email } : null,
+          currentUserAfterResult: currentUser ? { uid: currentUser.uid, email: currentUser.email } : null,
+          timestamp: new Date().toUTCString(),
+        };
 
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          // A redirect was processed. We now check if the auth state "stuck".
-          // If the domain is unauthorized, `auth.currentUser` will be null even after a successful redirect.
-          if (!auth.currentUser) {
-             const errorDescription = "The login succeeded but the app could not verify the session. This is usually because the domain is not authorized. Please add this website's domain to the 'Authorized domains' list in your Firebase Authentication settings.";
-             setAuthError(errorDescription);
-             toast({
-                variant: "destructive",
-                title: "Login Verification Failed",
-                description: errorDescription,
-                duration: 20000,
-            });
-          }
+        if (result && !currentUser) {
+          // This is the classic "unauthorized domain" case.
+          const errorMessage = `Authentication Debugging:\nLogin redirect was processed, but the user session could not be verified.\nThis almost always means the domain is not authorized in Firebase.\n\nDebug Info:\n${JSON.stringify(debugInfo, null, 2)}`;
+          setAuthError(errorMessage);
+        } else if (!result && !currentUser) {
+            // This is a normal page load, no user is logged in. No error.
         }
-        // In all cases, the redirect processing is now finished.
+
+      } catch (error: any) {
+        const errorInfo = {
+          code: error.code,
+          message: error.message,
+          timestamp: new Date().toUTCString(),
+        };
+        const errorMessage = `Authentication Debugging:\nAn error occurred while processing the login redirect.\n\nError Details:\n${JSON.stringify(errorInfo, null, 2)}`;
+        setAuthError(errorMessage);
+      } finally {
+        // No matter what, we stop processing.
         setIsProcessingRedirect(false);
-      })
-      .catch(error => {
-        console.error("Error processing redirect result:", error);
-        
-        let description = `Could not complete sign-in. Reason: ${error.message}`;
-        if (error.code === 'auth/unauthorized-domain') {
-            description = "This domain is not authorized for login. Please add it to your Firebase Authentication settings under 'Authorized domains'.";
-        }
-        setAuthError(description);
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: description,
-          duration: 20000,
-        });
-        
-        setIsProcessingRedirect(false);
-      });
-      
-  }, [auth, toast]);
+      }
+    };
+  
+    // We only run this once. The `isProcessingRedirect` flag prevents re-runs.
+    if(isProcessingRedirect){
+        processRedirect();
+    }
+
+  }, [auth, isProcessingRedirect]);
 
 
   const handleContentGenerated = (content: GeneratedContent, source: 'comment' | 'photo' | 'improve', photoUrl?: string) => {
@@ -179,9 +182,9 @@ export default function Home() {
              <div className="flex h-[60vh] flex-col items-center justify-center text-center">
                 <AlertCircle className="h-16 w-16 text-destructive" />
                 <h1 className="mt-6 text-3xl font-bold text-destructive">Authentication Error</h1>
-                <p className="mt-4 max-w-2xl rounded-md border border-destructive bg-destructive/10 p-4 text-center text-foreground">
+                <pre className="mt-4 max-w-4xl whitespace-pre-wrap rounded-md border border-destructive bg-destructive/10 p-4 text-left font-mono text-sm text-foreground">
                   {authError}
-                </p>
+                </pre>
                 <Button size="lg" className="mt-8" onClick={() => window.location.reload()}>
                   Try Again
                 </Button>
@@ -189,7 +192,7 @@ export default function Home() {
           ) : isLoading ? (
             <div className="flex h-[60vh] flex-col items-center justify-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="mt-4 text-muted-foreground">Loading session...</p>
+              <p className="mt-4 text-muted-foreground">Verifying session...</p>
             </div>
           ) : !user ? (
             <div className="flex h-[60vh] flex-col items-center justify-center text-center">
