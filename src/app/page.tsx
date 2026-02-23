@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { GeneratedContent } from '@/lib/types';
 import { ContentGenerator } from '@/components/content-generator';
 import { ContentPreview } from '@/components/content-preview';
 import { useUser, useAuth, useLanguage } from '@/firebase';
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { History, LogOut, Languages, Shield, Loader2, AlertCircle } from 'lucide-react';
+import { History, LogOut, Languages, Shield, Loader2 } from 'lucide-react';
 import { HistoryDialog } from '@/components/history-dialog';
 import { Icons } from '@/components/icons';
 import Link from 'next/link';
@@ -20,8 +20,6 @@ export default function Home() {
   const [contentSource, setContentSource] = useState<'comment' | 'photo' | 'improve' | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [isProcessingRedirect, setIsProcessingRedirect] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   const { user, loading: userLoading, signOut } = useUser();
   const auth = useAuth();
@@ -32,60 +30,25 @@ export default function Home() {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithRedirect(auth, provider);
-    } catch (error) {
-      console.error("Error during sign-in:", error);
+      await signInWithPopup(auth, provider);
+      // The onAuthStateChanged listener in useUser will handle the user state update.
+    } catch (error: any) {
+      console.error("Error during sign-in with popup:", error);
+      if (error.code === 'auth/popup-blocked') {
+        toast({
+          variant: "destructive",
+          title: "Popup Bloqueado",
+          description: "Por favor, permite las ventanas emergentes para este sitio para poder iniciar sesión.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Fallo en el inicio de sesión",
+          description: error.message || "Ha ocurrido un error desconocido.",
+        });
+      }
     }
   };
-  
-  useEffect(() => {
-    if (!auth) {
-      setIsProcessingRedirect(false);
-      return;
-    }
-  
-    // This function is designed to only run once.
-    const processRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        const currentUser = auth.currentUser;
-        
-        let debugInfo = {
-          hasResult: !!result,
-          resultUser: result ? { uid: result.user.uid, email: result.user.email } : null,
-          currentUserAfterResult: currentUser ? { uid: currentUser.uid, email: currentUser.email } : null,
-          timestamp: new Date().toUTCString(),
-        };
-
-        if (result && !currentUser) {
-          // This is the classic "unauthorized domain" case.
-          const errorMessage = `Authentication Debugging:\nLogin redirect was processed, but the user session could not be verified.\nThis almost always means the domain is not authorized in Firebase.\n\nDebug Info:\n${JSON.stringify(debugInfo, null, 2)}`;
-          setAuthError(errorMessage);
-        } else if (!result && !currentUser) {
-            // This is a normal page load, no user is logged in. No error.
-        }
-
-      } catch (error: any) {
-        const errorInfo = {
-          code: error.code,
-          message: error.message,
-          timestamp: new Date().toUTCString(),
-        };
-        const errorMessage = `Authentication Debugging:\nAn error occurred while processing the login redirect.\n\nError Details:\n${JSON.stringify(errorInfo, null, 2)}`;
-        setAuthError(errorMessage);
-      } finally {
-        // No matter what, we stop processing.
-        setIsProcessingRedirect(false);
-      }
-    };
-  
-    // We only run this once. The `isProcessingRedirect` flag prevents re-runs.
-    if(isProcessingRedirect){
-        processRedirect();
-    }
-
-  }, [auth, isProcessingRedirect]);
-
 
   const handleContentGenerated = (content: GeneratedContent, source: 'comment' | 'photo' | 'improve', photoUrl?: string) => {
     setGeneratedContent(content);
@@ -111,8 +74,6 @@ export default function Home() {
     }
     return names[0][0];
   };
-  
-  const isLoading = userLoading || isProcessingRedirect;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -178,21 +139,10 @@ export default function Home() {
 
       <main className="flex-1">
         <div className="container py-8">
-          {authError ? (
-             <div className="flex h-[60vh] flex-col items-center justify-center text-center">
-                <AlertCircle className="h-16 w-16 text-destructive" />
-                <h1 className="mt-6 text-3xl font-bold text-destructive">Authentication Error</h1>
-                <pre className="mt-4 max-w-4xl whitespace-pre-wrap rounded-md border border-destructive bg-destructive/10 p-4 text-left font-mono text-sm text-foreground">
-                  {authError}
-                </pre>
-                <Button size="lg" className="mt-8" onClick={() => window.location.reload()}>
-                  Try Again
-                </Button>
-            </div>
-          ) : isLoading ? (
+          {userLoading ? (
             <div className="flex h-[60vh] flex-col items-center justify-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="mt-4 text-muted-foreground">Verifying session...</p>
+              <p className="mt-4 text-muted-foreground">Verificando sesión...</p>
             </div>
           ) : !user ? (
             <div className="flex h-[60vh] flex-col items-center justify-center text-center">
