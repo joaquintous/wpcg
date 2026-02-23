@@ -9,7 +9,7 @@ import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'fireb
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { History, LogOut, Languages, Shield, Loader2 } from 'lucide-react';
+import { History, LogOut, Languages, Shield, Loader2, AlertCircle } from 'lucide-react';
 import { HistoryDialog } from '@/components/history-dialog';
 import { Icons } from '@/components/icons';
 import Link from 'next/link';
@@ -21,6 +21,7 @@ export default function Home() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [isProcessingRedirect, setIsProcessingRedirect] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const { user, loading: userLoading, signOut } = useUser();
   const auth = useAuth();
@@ -39,6 +40,7 @@ export default function Home() {
   
   useEffect(() => {
     if (!auth) {
+      setIsProcessingRedirect(false);
       return;
     }
 
@@ -48,10 +50,12 @@ export default function Home() {
           // A redirect was processed. We now check if the auth state "stuck".
           // If the domain is unauthorized, `auth.currentUser` will be null even after a successful redirect.
           if (!auth.currentUser) {
+             const errorDescription = "The login succeeded but the app could not verify the session. This is usually because the domain is not authorized. Please add this website's domain to the 'Authorized domains' list in your Firebase Authentication settings.";
+             setAuthError(errorDescription);
              toast({
                 variant: "destructive",
                 title: "Login Verification Failed",
-                description: "The login succeeded but the app could not verify the session. This is usually because the domain is not authorized. Please add this website's domain to the 'Authorized domains' list in your Firebase Authentication settings.",
+                description: errorDescription,
                 duration: 20000,
             });
           }
@@ -66,7 +70,7 @@ export default function Home() {
         if (error.code === 'auth/unauthorized-domain') {
             description = "This domain is not authorized for login. Please add it to your Firebase Authentication settings under 'Authorized domains'.";
         }
-
+        setAuthError(description);
         toast({
           variant: "destructive",
           title: "Login Failed",
@@ -171,7 +175,18 @@ export default function Home() {
 
       <main className="flex-1">
         <div className="container py-8">
-          {isLoading ? (
+          {authError ? (
+             <div className="flex h-[60vh] flex-col items-center justify-center text-center">
+                <AlertCircle className="h-16 w-16 text-destructive" />
+                <h1 className="mt-6 text-3xl font-bold text-destructive">Authentication Error</h1>
+                <p className="mt-4 max-w-2xl rounded-md border border-destructive bg-destructive/10 p-4 text-center text-foreground">
+                  {authError}
+                </p>
+                <Button size="lg" className="mt-8" onClick={() => window.location.reload()}>
+                  Try Again
+                </Button>
+            </div>
+          ) : isLoading ? (
             <div className="flex h-[60vh] flex-col items-center justify-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
               <p className="mt-4 text-muted-foreground">Loading session...</p>
