@@ -13,16 +13,19 @@ import { History, LogOut, Languages, Shield, Loader2 } from 'lucide-react';
 import { HistoryDialog } from '@/components/history-dialog';
 import { Icons } from '@/components/icons';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [contentSource, setContentSource] = useState<'comment' | 'photo' | 'improve' | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [isProcessingRedirect, setIsProcessingRedirect] = useState(true);
 
   const { user, loading: userLoading, signOut } = useUser();
   const auth = useAuth();
   const { t, setLanguage, language } = useLanguage();
+  const { toast } = useToast();
 
   const handleLogin = async () => {
     if (!auth) return;
@@ -36,13 +39,30 @@ export default function Home() {
   
   useEffect(() => {
     if (auth) {
-      getRedirectResult(auth).catch(error => {
-        if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
-           console.error("Error getting redirect result:", error);
-        }
-      });
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result) {
+            console.log('Firebase redirect result processed for user:', result.user.email);
+          }
+        })
+        .catch(error => {
+          console.error("Error processing redirect result:", error);
+          if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
+            toast({
+              variant: "destructive",
+              title: "Login Failed",
+              description: `Could not complete sign-in. Reason: ${error.message}`,
+              duration: 10000,
+            });
+          }
+        })
+        .finally(() => {
+            setIsProcessingRedirect(false);
+        });
+    } else {
+        setIsProcessingRedirect(false);
     }
-  }, [auth]);
+  }, [auth, toast]);
 
 
   const handleContentGenerated = (content: GeneratedContent, source: 'comment' | 'photo' | 'improve', photoUrl?: string) => {
@@ -69,6 +89,8 @@ export default function Home() {
     }
     return names[0][0];
   };
+  
+  const isLoading = userLoading || isProcessingRedirect;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -134,7 +156,7 @@ export default function Home() {
 
       <main className="flex-1">
         <div className="container py-8">
-          {userLoading ? (
+          {isLoading ? (
             <div className="flex h-[60vh] flex-col items-center justify-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
               <p className="mt-4 text-muted-foreground">Loading session...</p>
